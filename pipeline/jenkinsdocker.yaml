@@ -117,6 +117,7 @@ pipeline {
               sh 'kubectl apply -f front-deploy.yaml --insecure-skip-tls-verify'
               sh 'kubectl apply -f front-service.yaml --insecure-skip-tls-verify'
               sh 'kubectl apply -f secrets-backend.yaml --insecure-skip-tls-verify'
+              sh 'kubectl rollout restart deployment frontend-deployment --insecure-skip-tls-verify'
             }
           }
         }
