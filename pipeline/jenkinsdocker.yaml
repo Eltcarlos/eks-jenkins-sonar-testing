@@ -1,0 +1,126 @@
+pipeline {
+  agent any
+
+  tools {
+    jdk 'jdk17'
+    nodejs 'node23'
+  }
+
+  environment {
+    MONGO_URI = 'mongodb+srv://eltcarlosfn:1b8NqfW7BeaFYkBa@cluster0.6rygg.mongodb.net/parking?retryWrites=true&w=majority&appName=Cluster0'
+    VITE_BACKEND_URL = 'http://backend-svc:3001/api'
+    PORT = '3000'
+    SONAR_PROJECT_KEY = 'parking'
+    SONAR_HOST_URL = 'http://192.168.1.15:9000'
+    SONAR_TOKEN = credentials('Sonar-token')
+    SCANNER_HOME = tool 'sonar-scanner'
+  }
+
+  stages {
+    stage('Clean Workspace') {
+      steps {
+        cleanWs()
+      }
+    }
+
+    stage('Checkout from Git') {
+      steps {
+        git branch: 'main', url: 'https://github.com/Eltcarlos/eks-jenkins-sonar-testing'
+      }
+    }
+
+    stage('SonarQube Analysis with Docker') {
+  steps {
+    sh """
+      docker run --rm \
+        -v "\$(pwd):/usr/src" \
+        sonarsource/sonar-scanner-cli:latest \
+        -Dsonar.projectKey=parking \
+        -Dsonar.projectName=parking \
+        -Dsonar.sources=. \
+        -Dsonar.host.url=http://192.168.1.15:9000 \
+        -Dsonar.login=${SONAR_TOKEN}
+    """
+  }
+}
+
+
+    stage('Install Dependencies') {
+      steps {
+        sh '''
+          cd back && npm install
+          cd ../front && npm install
+        '''
+      }
+    }
+
+    stage('Testing Integration') {
+      steps {
+        dir('back') {
+          sh 'npm run test'
+        }
+      }
+    }
+
+    stage('Docker Build & Push - Back') {
+      steps {
+        dir('back') {
+          script {
+            withDockerRegistry(credentialsId: 'docker', toolName: 'docker') {
+              sh """
+                docker build \
+                  --build-arg MONGO_URI="${MONGO_URI}" \
+                  --build-arg PORT="${PORT}" \
+                  -t eltcarlos/parking-back .
+
+                docker push eltcarlos/parking-back
+              """
+            }
+          }
+        }
+      }
+    }
+
+    stage('Docker Build & Push - Front') {
+      steps {
+        dir('front') {
+          script {
+            withDockerRegistry(credentialsId: 'docker', toolName: 'docker') {
+              sh """
+                docker build \
+                  --build-arg VITE_BACKEND_URL="${VITE_BACKEND_URL}" \
+                  -t eltcarlos/parking-front .
+
+                docker push eltcarlos/parking-front
+              """
+            }
+          }
+        }
+      }
+    }
+
+    stage('Deploy to Kubernetes') {
+      steps {
+        script {
+          dir('eks') {
+            withKubeConfig(
+              caCertificate: '',
+              clusterName: '',
+              contextName: '',
+              credentialsId: 'k8s',
+              namespace: '',
+              restrictKubeConfigAccess: false,
+              serverUrl: ''
+            ) {
+              sh 'kubectl apply -f backend-deploy.yaml'
+              sh 'kubectl apply -f backend-service.yaml --insecure-skip-tls-verify'
+              sh 'kubectl apply -f front-deploy.yaml --insecure-skip-tls-verify'
+              sh 'kubectl apply -f front-service.yaml --insecure-skip-tls-verify'
+              sh 'kubectl apply -f secrets-backend.yaml --insecure-skip-tls-verify'
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: eltcarlos/frontend-parking
+          image: eltcarlos/parking-front
           ports:
             - containerPort: 5173
           env:

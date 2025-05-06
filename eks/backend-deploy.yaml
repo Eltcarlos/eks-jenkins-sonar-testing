@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: backend
-          image: eltcarlos/parking-backend
+          image: eltcarlos/parking-back
           ports:
             - containerPort: 3001
           envFrom:
