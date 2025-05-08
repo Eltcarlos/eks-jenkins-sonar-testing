@@ -33,7 +33,7 @@ const Login: React.FC = () => {
           <LogIn className="text-blue-600" size={24} />
         </div>
       </div>
-      <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">Sign In University</h2>
+      <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">Sign In</h2>
       
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
